@@ -348,6 +348,97 @@ void convertWEAP(SkyblivionConverter &converter) {
 
 }
 
+void addSpeakAsNpcs(SkyblivionConverter &converter, Collection &skyrimCollection) {
+	std::string metadataFile = converter.ROOT_BUILD_PATH() + "Metadata";
+	std::FILE* scriptHandle = std::fopen(metadataFile.c_str(), "r");
+	if (!scriptHandle) {
+		std::cout << "Couldn't find Metadata File" << std::endl;
+		return;
+	}
+
+	fseek(scriptHandle, 0, SEEK_END);
+	size_t size = ftell(scriptHandle);
+	char* scriptData = new char[size];
+	rewind(scriptHandle);
+	fread(scriptData, sizeof(char), size, scriptHandle);
+	fclose(scriptHandle);
+	std::string fullScript(scriptData);
+	delete[] scriptData;
+
+	boost::regex propRegex("ADD_SPEAK_AS_ACTOR (.*?)\\n");
+
+	boost::sregex_iterator properties(fullScript.begin(), fullScript.end(), propRegex, boost::match_not_dot_newline);
+	boost::sregex_iterator end;
+
+	std::string colPrefix = "col_";
+
+	TES5File* skyrimMod = converter.getGeckFile();
+	ModFile *skyblivionMod = converter.getSkyblivionFile();
+
+	Sk::CELLRecord *newCell = new Sk::CELLRecord();
+	newCell->formID = skyrimCollection.NextFreeExpandedFormID(skyblivionMod);
+
+	std::string cellEdid = std::string();
+	cellEdid = "TES4SpeakAsHoldingCell";
+	char *cstr = new char[cellEdid.length() + 1];
+	strncpy(cstr, cellEdid.c_str(), cellEdid.length() + 1);
+	newCell->EDID.value = cstr;
+
+	std::vector<std::string> actorNames;
+
+	for (; properties != end; ++properties) {
+		std::string actorName = (*properties)[1];
+
+		if (std::find(actorNames.begin(), actorNames.end(), actorName) != actorNames.end())
+			continue;
+
+		actorNames.push_back(actorName);
+
+		std::string achrEdid = "TES4" + actorName + "Ref";
+		cstr = new char[achrEdid.length() + 1];
+		strncpy(cstr, achrEdid.c_str(), achrEdid.length() + 1);
+		std::transform(achrEdid.begin(), achrEdid.end(), achrEdid.begin(), ::tolower);
+
+		if (converter.findRecordFormidByEDID(achrEdid) != NULL) {
+			std::cout << achrEdid << " already exists, new ACHR record won't be created" << std::endl;
+			continue;
+		}
+
+		Sk::ACHRRecord *newAchr = new Sk::ACHRRecord();
+		newAchr->formID = skyrimCollection.NextFreeExpandedFormID(skyblivionMod);
+
+		newAchr->EDID.value = cstr;
+		newAchr->flags = 0x400;
+
+		std::transform(actorName.begin(), actorName.end(), actorName.begin(), ::tolower);
+		FORMID actorFormid = converter.findRecordFormidByEDID("tes4" + actorName);
+
+		if (actorFormid == NULL) {
+			std::cout << "Couldn't find FORMID for the actor tes4" << actorName << std::endl;
+			continue;
+		}
+
+		newAchr->NAME.value = actorFormid;
+		GENPOSDATA *achrPos = new GENPOSDATA();
+		achrPos->posX = 0;
+		achrPos->posY = 0;
+		achrPos->posZ = 0;
+		achrPos->rotX = 0;
+		achrPos->rotY = 0;
+		achrPos->rotZ = 0;
+		newAchr->DATA.value = achrPos;
+		newCell->ACHR.push_back(newAchr);
+
+		converter.insertToEdidMap(achrEdid, newAchr->formID);
+	}
+
+	skyrimMod->CELL.cell_pool.construct(newCell, NULL, false);
+
+	std::transform(cellEdid.begin(), cellEdid.end(), cellEdid.begin(), ::tolower);
+
+	converter.insertToEdidMap(cellEdid, newCell->formID);
+}
+
 int main(int argc, char * argv[]) {
 
 	char* input = "Input.esm";
@@ -381,10 +472,21 @@ int main(int argc, char * argv[]) {
 
 	SkyblivionConverter converter = SkyblivionConverter(oblivionCollection, skyrimCollection, std::string(argv[3]));
 
-	std::cout << "Converting QUST records.. " << std::endl;
-	std::vector<Sk::QUSTRecord *> *resQUST = converter.convertQUSTFromOblivion();
 	std::cout << "Converting DIAL records.. " << std::endl;
 	std::vector<Sk::DIALRecord *> *resDIAL = converter.convertDIALFromOblivion();
+
+	/**
+	* @todo - How we handle topics splitted into N dialogue topics and suffixed by QSTI value?
+	*/
+	for (uint32_t it = 0; it < resDIAL->size(); ++it) {
+		Sk::DIALRecord *dial = (Sk::DIALRecord*)(*resDIAL)[it];
+		std::string dialEdid = std::string(dial->EDID.value);
+		std::transform(dialEdid.begin(), dialEdid.end(), dialEdid.begin(), ::tolower);
+		converter.insertToEdidMap(dialEdid, dial->formID);
+	}
+
+	std::cout << "Converting QUST records.. " << std::endl;
+	std::vector<Sk::QUSTRecord *> *resQUST = converter.convertQUSTFromOblivion();
 
 	std::cout << "Converting PACK records.. " << std::endl;
 	std::vector<Record*, std::allocator<Record*>> packages;
@@ -421,16 +523,6 @@ int main(int argc, char * argv[]) {
 		converter.insertToEdidMap(qustEdid, qust->formID);
 	}
 
-	/**
-	 * @todo - How we handle topics splitted into N dialogue topics and suffixed by QSTI value?
-	 */
-	for (uint32_t it = 0; it < resDIAL->size(); ++it) {
-		Sk::DIALRecord *dial = (Sk::DIALRecord*)(*resDIAL)[it];
-		std::string dialEdid = std::string(dial->EDID.value);
-		std::transform(dialEdid.begin(), dialEdid.end(), dialEdid.begin(), ::tolower);
-		converter.insertToEdidMap(dialEdid, dial->formID);
-	}
-
 	std::cout << "Binding VMADs to ACTI records.. " << std::endl;
 	convertACTI(converter);
 	std::cout << "Binding VMADs to CONT records.. " << std::endl;
@@ -441,6 +533,8 @@ int main(int argc, char * argv[]) {
 	convertNPC_(converter);
 	std::cout << "Binding VMADs to WEAP records.. " << std::endl;
 	convertWEAP(converter);
+
+	addSpeakAsNpcs(converter, skyrimCollection);
 
     SaveFlags skSaveFlags = SaveFlags(2);
 
