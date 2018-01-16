@@ -352,7 +352,7 @@ void addSpeakAsNpcs(SkyblivionConverter &converter, Collection &skyrimCollection
 	std::string metadataFile = converter.ROOT_BUILD_PATH() + "Metadata";
 	std::FILE* scriptHandle = std::fopen(metadataFile.c_str(), "r");
 	if (!scriptHandle) {
-		std::cout << "Couldn't find Metadata File" << std::endl;
+		log_error << "Couldn't find Metadata File\n";
 		return;
 	}
 
@@ -400,7 +400,7 @@ void addSpeakAsNpcs(SkyblivionConverter &converter, Collection &skyrimCollection
 		std::transform(achrEdid.begin(), achrEdid.end(), achrEdid.begin(), ::tolower);
 
 		if (converter.findRecordFormidByEDID(achrEdid) != NULL) {
-			std::cout << achrEdid << " already exists, new ACHR record won't be created" << std::endl;
+			log_info << achrEdid << " already exists, new ACHR record won't be created\n";
 			continue;
 		}
 
@@ -414,7 +414,7 @@ void addSpeakAsNpcs(SkyblivionConverter &converter, Collection &skyrimCollection
 		FORMID actorFormid = converter.findRecordFormidByEDID("tes4" + actorName);
 
 		if (actorFormid == NULL) {
-			std::cout << "Couldn't find FORMID for the actor tes4" << actorName << std::endl;
+			log_error << "Couldn't find FORMID for the actor tes4" << actorName << "\n";
 			continue;
 		}
 
@@ -450,6 +450,8 @@ int main(int argc, char * argv[]) {
 		return 0;
 	}
 
+	logger.init(argc, argv);
+
 	Collection oblivionCollection = Collection(argv[1], 0);
 	Collection skyrimCollection = Collection(argv[2], 3);
 
@@ -472,7 +474,9 @@ int main(int argc, char * argv[]) {
 
 	SkyblivionConverter converter = SkyblivionConverter(oblivionCollection, skyrimCollection, std::string(argv[3]));
 
-	std::cout << "Converting DIAL records.. " << std::endl;
+	addSpeakAsNpcs(converter, skyrimCollection);
+
+	std::cout << std::endl << "Converting DIAL records.. " << std::endl;
 	std::vector<Sk::DIALRecord *> *resDIAL = converter.convertDIALFromOblivion();
 
 	/**
@@ -485,10 +489,10 @@ int main(int argc, char * argv[]) {
 		converter.insertToEdidMap(dialEdid, dial->formID);
 	}
 
-	std::cout << "Converting QUST records.. " << std::endl;
+	std::cout << std::endl << "Converting QUST records.. " << std::endl;
 	std::vector<Sk::QUSTRecord *> *resQUST = converter.convertQUSTFromOblivion();
 
-	std::cout << "Converting PACK records.. " << std::endl;
+	std::cout << std::endl << "Converting PACK records.. " << std::endl;
 	std::vector<Record*, std::allocator<Record*>> packages;
 	oblivionMod->PACK.pool.MakeRecordsVector(packages);
 
@@ -504,8 +508,7 @@ int main(int argc, char * argv[]) {
 			skyrimMod->PACK.pool.construct(skPack, NULL, false);
 		}
 		catch (std::exception &e) {
-			printer(e.what());
-			printer("\r\n");
+			log_warning << e.what() << "\n";
 			continue;
 		}
 
@@ -523,18 +526,16 @@ int main(int argc, char * argv[]) {
 		converter.insertToEdidMap(qustEdid, qust->formID);
 	}
 
-	std::cout << "Binding VMADs to ACTI records.. " << std::endl;
+	std::cout << std::endl << "Binding VMADs to ACTI records.. " << std::endl;
 	convertACTI(converter);
-	std::cout << "Binding VMADs to CONT records.. " << std::endl;
+	std::cout << std::endl << "Binding VMADs to CONT records.. " << std::endl;
 	convertCONT(converter);
-	std::cout << "Binding VMADs to DOOR records.. " << std::endl;
+	std::cout << std::endl << "Binding VMADs to DOOR records.. " << std::endl;
 	convertDOOR(converter);
-	std::cout << "Binding VMADs to NPC_ records.. " << std::endl;
+	std::cout << std::endl << "Binding VMADs to NPC_ records.. " << std::endl;
 	convertNPC_(converter);
-	std::cout << "Binding VMADs to WEAP records.. " << std::endl;
+	std::cout << std::endl << "Binding VMADs to WEAP records.. " << std::endl;
 	convertWEAP(converter);
-
-	addSpeakAsNpcs(converter, skyrimCollection);
 
     SaveFlags skSaveFlags = SaveFlags(2);
 
