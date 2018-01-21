@@ -1140,6 +1140,9 @@ int main(int argc, char * argv[]) {
 		converter.insertToEdidMap(qustEdid, qust->formID);
 	}
 
+	log_debug << std::endl << "Binding properties of INFO and QUST related scripts.. " << std::endl;
+	converter.bindScriptProperties(resDIAL, resQUST);
+
 	log_debug << std::endl << "Binding VMADs to ACTI records.. " << std::endl;
 	convertACTI(converter);
 	log_debug << std::endl << "Binding VMADs to CONT records.. " << std::endl;
