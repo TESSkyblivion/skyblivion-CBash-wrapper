@@ -9,25 +9,26 @@ void convertACTI(SkyblivionConverter &converter) {
 	TES4File* oblivionMod = converter.getOblivionFile();
 	TES5File* skyrimMod = converter.getGeckFile();
 	TES5File* skyblivion = converter.getSkyblivionFile();
-	std::vector<Record*, std::allocator<Record*>> activators;
-	std::vector<Record*, std::allocator<Record*>> skyrimActivators;
-	std::vector<Record*, std::allocator<Record*>> modActivators;
-	oblivionMod->ACTI.pool.MakeRecordsVector(activators);
-	skyblivion->ACTI.pool.MakeRecordsVector(skyrimActivators);
-	skyrimMod->ACTI.pool.MakeRecordsVector(skyrimActivators);
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->ACTI.pool.MakeRecordsVector(obRecords);
+	skyblivion->ACTI.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->ACTI.pool.MakeRecordsVector(skbRecords);
 	
 	std::vector<Sk::ACTIRecord*> targets = std::vector<Sk::ACTIRecord*>();
-	printer("%d ACTIs found in oblivion file.\n", activators.size());
-	for(uint32_t it = 0; it < activators.size(); ++it) {
-		Ob::ACTIRecord *p = (Ob::ACTIRecord*)activators[it];
+	log_debug << obRecords.size() << " ACTIs found in oblivion file.\n";
+	for(uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::ACTIRecord *p = (Ob::ACTIRecord*)obRecords[it];
 
 		if (p->SCRI.IsLoaded()) {
-			Sk::ACTIRecord* target = reinterpret_cast<Sk::ACTIRecord*>(*std::find_if(skyrimActivators.begin(), skyrimActivators.end(), [=](const Record* record) { return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); }));
-			if(!target)
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
 			{
-				std::cout << "Cannot find ACTI EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				log_error << "Cannot find ACTI EDID " << std::string(p->GetEditorIDKey()) << std::endl;
 				continue;
 			}
+			Sk::ACTIRecord* target = reinterpret_cast<Sk::ACTIRecord*>(*foundRec);
 
 			//Find the script
 			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
@@ -41,7 +42,7 @@ void convertACTI(SkyblivionConverter &converter) {
 				targets.push_back(target);
 			}
 			catch (std::exception &ex) {
-				std::cout << "Cannot bind script to ACTI: " + std::string(ex.what()) << std::endl;
+				log_error << "Cannot bind script to ACTI: " + std::string(ex.what()) << std::endl;
 				continue; //Cannot find - thats fine
 			}
 
@@ -57,10 +58,10 @@ void convertACTI(SkyblivionConverter &converter) {
 	//TODO:
 	//a) IsChanged flag should be passed on in copy constructor
 	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
-	skyrimMod->ACTI.pool.MakeRecordsVector(modActivators);
+	skyrimMod->ACTI.pool.MakeRecordsVector(modRecords);
 
-	for (uint32_t i = 0; i < modActivators.size(); i++) {
-			Sk::ACTIRecord* acti = (Sk::ACTIRecord*) modActivators.at(i);
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+			Sk::ACTIRecord* acti = (Sk::ACTIRecord*) modRecords.at(i);
 			acti->IsChanged(true);
 	}
 
@@ -70,24 +71,25 @@ void convertCONT(SkyblivionConverter &converter) {
 	TES4File* oblivionMod = converter.getOblivionFile();
 	TES5File* skyrimMod = converter.getGeckFile();
 	TES5File* skyblivion = converter.getSkyblivionFile();
-	std::vector<Record*, std::allocator<Record*>> contvators;
-	std::vector<Record*, std::allocator<Record*>> skyrimActivators;
-	std::vector<Record*, std::allocator<Record*>> modActivators;
-	oblivionMod->CONT.pool.MakeRecordsVector(contvators);
-	skyblivion->CONT.pool.MakeRecordsVector(skyrimActivators);
-	skyrimMod->CONT.pool.MakeRecordsVector(skyrimActivators);
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->CONT.pool.MakeRecordsVector(obRecords);
+	skyblivion->CONT.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->CONT.pool.MakeRecordsVector(skbRecords);
 	std::vector<Sk::CONTRecord*> targets = std::vector<Sk::CONTRecord*>();
-	printer("%d CONTs found in oblivion file.\n", contvators.size());
-	for (uint32_t it = 0; it < contvators.size(); ++it) {
-		Ob::CONTRecord *p = (Ob::CONTRecord*)contvators[it];
+	log_debug << obRecords.size() << " CONTs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::CONTRecord *p = (Ob::CONTRecord*)obRecords[it];
 
 		if (p->SCRI.IsLoaded()) {
-			Sk::CONTRecord* target = reinterpret_cast<Sk::CONTRecord*>(*std::find_if(skyrimActivators.begin(), skyrimActivators.end(), [=](const Record* record) { return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); }));
-			if(!target)
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
 			{
-				std::cout << "Cannot find CONT EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				log_error << "Cannot find CONT EDID " << std::string(p->GetEditorIDKey()) << std::endl;
 				continue;
 			}
+			Sk::CONTRecord* target = reinterpret_cast<Sk::CONTRecord*>(*foundRec);
 
 			//Find the script
 			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
@@ -101,7 +103,7 @@ void convertCONT(SkyblivionConverter &converter) {
 				targets.push_back(target);
 			}
 			catch (std::exception &ex) {
-				std::cout << "Cannot bind script to CONT: " + std::string(ex.what()) << std::endl;
+				log_error << "Cannot bind script to CONT: " + std::string(ex.what()) << std::endl;
 				continue; //Cannot find - thats fine
 			}
 
@@ -118,10 +120,10 @@ void convertCONT(SkyblivionConverter &converter) {
 	//TODO:
 	//a) IsChanged flag should be passed on in copy constructor
 	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
-	skyrimMod->CONT.pool.MakeRecordsVector(modActivators);
+	skyrimMod->CONT.pool.MakeRecordsVector(modRecords);
 
-	for (uint32_t i = 0; i < modActivators.size(); i++) {
-			Sk::CONTRecord* acti = (Sk::CONTRecord*) modActivators.at(i);
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+			Sk::CONTRecord* acti = (Sk::CONTRecord*) modRecords.at(i);
 			acti->IsChanged(true);
 	}
 	
@@ -129,29 +131,29 @@ void convertCONT(SkyblivionConverter &converter) {
 
 }
 
-
 void convertDOOR(SkyblivionConverter &converter) {
 	TES4File* oblivionMod = converter.getOblivionFile();
 	TES5File* skyrimMod = converter.getGeckFile();
 	TES5File* skyblivion = converter.getSkyblivionFile();
-	std::vector<Record*, std::allocator<Record*>> Doors;
-	std::vector<Record*, std::allocator<Record*>> skyrimDoors;
-	std::vector<Record*, std::allocator<Record*>> modDoors;
-	oblivionMod->DOOR.pool.MakeRecordsVector(Doors);
-	skyblivion->DOOR.pool.MakeRecordsVector(skyrimDoors);
-	skyrimMod->DOOR.pool.MakeRecordsVector(skyrimDoors);
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->DOOR.pool.MakeRecordsVector(obRecords);
+	skyblivion->DOOR.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->DOOR.pool.MakeRecordsVector(skbRecords);
 	std::vector<Sk::DOORRecord*> targets = std::vector<Sk::DOORRecord*>();
-	printer("%d DOORs found in oblivion file.\n", Doors.size());
-	for (uint32_t it = 0; it < Doors.size(); ++it) {
-		Ob::DOORRecord *p = (Ob::DOORRecord*)Doors[it];
+	log_debug << obRecords.size() << " DOORs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::DOORRecord *p = (Ob::DOORRecord*)obRecords[it];
 
 		if (p->SCRI.IsLoaded()) {
-			Sk::DOORRecord* target = reinterpret_cast<Sk::DOORRecord*>(*std::find_if(skyrimDoors.begin(), skyrimDoors.end(), [=](const Record* record) { return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); }));
-			if(!target)
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
 			{
-				std::cout << "Cannot find DOOR EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				log_error << "Cannot find DOOR EDID " << std::string(p->GetEditorIDKey()) << std::endl;
 				continue;
 			}
+			Sk::DOORRecord* target = reinterpret_cast<Sk::DOORRecord*>(*foundRec);
 
 			//Find the script
 			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
@@ -165,7 +167,7 @@ void convertDOOR(SkyblivionConverter &converter) {
 				targets.push_back(target);
 			}
 			catch (std::exception &ex) {
-				std::cout << "Cannot bind script to DOOR: " + std::string(ex.what()) << std::endl;
+				log_error << "Cannot bind script to DOOR: " + std::string(ex.what()) << std::endl;
 				continue; //Cannot find - thats fine
 			}
 
@@ -181,10 +183,10 @@ void convertDOOR(SkyblivionConverter &converter) {
 	//TODO:
 	//a) IsChanged flag should be passed on in copy constructor
 	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
-	skyrimMod->DOOR.pool.MakeRecordsVector(modDoors);
+	skyrimMod->DOOR.pool.MakeRecordsVector(modRecords);
 
-	for (uint32_t i = 0; i < modDoors.size(); i++) {
-			Sk::DOORRecord* acti = (Sk::DOORRecord*) modDoors.at(i);
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+			Sk::DOORRecord* acti = (Sk::DOORRecord*) modRecords.at(i);
 			acti->IsChanged(true);
 	}
 	
@@ -194,27 +196,30 @@ void convertNPC_(SkyblivionConverter &converter) {
 	TES4File* oblivionMod = converter.getOblivionFile();
 	TES5File* skyrimMod = converter.getGeckFile();
 	TES5File* skyblivion = converter.getSkyblivionFile();
-	std::vector<Record*, std::allocator<Record*>> Npcs;
+	std::vector<Record*, std::allocator<Record*>> obRecords;
 	std::vector<Record*, std::allocator<Record*>> Creatures;
-	std::vector<Record*, std::allocator<Record*>> skyrimNpcs;
-	std::vector<Record*, std::allocator<Record*>> modNpcs;
-	oblivionMod->NPC_.pool.MakeRecordsVector(Npcs);
+	std::vector<Record*, std::allocator<Record*>> LeveledCrea;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->NPC_.pool.MakeRecordsVector(obRecords);
 	oblivionMod->CREA.pool.MakeRecordsVector(Creatures);
-	skyblivion->NPC_.pool.MakeRecordsVector(skyrimNpcs);
-	skyrimMod->NPC_.pool.MakeRecordsVector(skyrimNpcs);
+	oblivionMod->LVLC.pool.MakeRecordsVector(LeveledCrea);
+	skyblivion->NPC_.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->NPC_.pool.MakeRecordsVector(skbRecords);
 	std::vector<Sk::NPC_Record*> targets = std::vector<Sk::NPC_Record*>();
-	printer("%d NPCs found in oblivion file.\n", Npcs.size());
-	for (uint32_t it = 0; it < Npcs.size(); ++it) {
-		Ob::NPC_Record *p = (Ob::NPC_Record*)Npcs[it];
+	log_debug << obRecords.size() << " NPCs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::NPC_Record *p = (Ob::NPC_Record*)obRecords[it];
 
 
 		if (p->SCRI.IsLoaded()) {
-			Sk::NPC_Record* target = reinterpret_cast<Sk::NPC_Record*>(*std::find_if(skyrimNpcs.begin(), skyrimNpcs.end(), [=](const Record* record) { return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); }));
-			if(!target)
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
 			{
-				std::cout << "Cannot find NPC_ EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				log_error << "Cannot find NPC_ EDID " << std::string(p->GetEditorIDKey()) << std::endl;
 				continue;
 			}
+			Sk::NPC_Record* target = reinterpret_cast<Sk::NPC_Record*>(*foundRec);
 
 			//Find the script
 			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
@@ -228,7 +233,7 @@ void convertNPC_(SkyblivionConverter &converter) {
 				targets.push_back(target);
 			}
 			catch (std::exception &ex) {
-				std::cout << "Cannot bind script to NPC_: " + std::string(ex.what()) << std::endl;
+				log_error << "Cannot bind script to NPC_: " + std::string(ex.what()) << std::endl;
 				continue; //Cannot find - thats fine
 			}
 
@@ -236,16 +241,18 @@ void convertNPC_(SkyblivionConverter &converter) {
 
 	}
 
+	log_debug << Creatures.size() << " CREAs found in oblivion file.\n";
 	for (uint32_t it = 0; it < Creatures.size(); ++it) {
 		Ob::CREARecord *p = (Ob::CREARecord*)Creatures[it];
 
 		if (p->SCRI.IsLoaded()) {
-			Sk::NPC_Record* target = reinterpret_cast<Sk::NPC_Record*>(*std::find_if(skyrimNpcs.begin(), skyrimNpcs.end(), [=](const Record* record) { return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); }));
-			if(!target)
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
 			{
-				std::cout << "Cannot find NPC_ ( old CREA ) EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				log_error << "Cannot find NPC_ ( old CREA ) EDID " << std::string(p->GetEditorIDKey()) << std::endl;
 				continue;
 			}
+			Sk::NPC_Record* target = reinterpret_cast<Sk::NPC_Record*>(*foundRec);
 
 			//Find the script
 			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
@@ -259,7 +266,7 @@ void convertNPC_(SkyblivionConverter &converter) {
 				targets.push_back(target);
 			}
 			catch (std::exception &ex) {
-				std::cout << "Cannot bind script to NPC_: " + std::string(ex.what()) << std::endl;
+				log_error << "Cannot bind script to NPC_: " + std::string(ex.what()) << std::endl;
 				continue; //Cannot find - thats fine
 			}
 
@@ -267,6 +274,46 @@ void convertNPC_(SkyblivionConverter &converter) {
 
 	}
 
+	log_debug << LeveledCrea.size() << " LVLCs found in oblivion file.\n";
+	for (uint32_t it = 0; it < LeveledCrea.size(); ++it) {
+		Ob::LVLCRecord *p = (Ob::LVLCRecord*)LeveledCrea[it];
+		if (p->SCRI.IsLoaded()) {
+			std::string lvlnEdid = "TES4" + std::string(p->EDID.value);
+			std::transform(lvlnEdid.begin(), lvlnEdid.end(), lvlnEdid.begin(), ::tolower);
+			FORMID lvlnFormid = converter.findRecordFormidByEDID(lvlnEdid);
+			if (lvlnFormid == NULL) {
+				log_error << "Cannot find LVLN  EDID " << lvlnEdid << std::endl;
+				continue;
+			}
+
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) { return (lvlnFormid & 0x00FFFFFF) == (((Sk::NPC_Record*)record)->TPLT.value & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
+			{
+				log_warning << "Cannot find NPC_, LVLN EDID " << lvlnEdid << " LVLN formid (NPC_->TPLT) " << lvlnFormid << std::endl;
+				continue;
+			}
+			Sk::NPC_Record* target = reinterpret_cast<Sk::NPC_Record*>(*foundRec);
+			//Find the script
+			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
+
+			try {
+				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
+
+				// Do not override if there are already scripts in VMAD record
+				if (target->VMAD.scripts.size() < 1)
+					target->VMAD = VMADRecord();
+
+				target->VMAD.scripts.push_back(convertedScript);
+				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
+				targets.push_back(target);
+			}
+			catch (std::exception &ex) {
+				log_error << "Cannot bind script to NPC_: " + std::string(ex.what()) << std::endl;
+				continue; //Cannot find - thats fine
+			}
+		}
+
+	}
 
 
 	for (uint32_t i = 0; i < targets.size(); i++) {
@@ -276,39 +323,39 @@ void convertNPC_(SkyblivionConverter &converter) {
 	//TODO:
 	//a) IsChanged flag should be passed on in copy constructor
 	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
-	skyrimMod->NPC_.pool.MakeRecordsVector(modNpcs);
+	skyrimMod->NPC_.pool.MakeRecordsVector(modRecords);
 
-	for (uint32_t i = 0; i < modNpcs.size(); i++) {
-			Sk::NPC_Record* acti = (Sk::NPC_Record*) modNpcs.at(i);
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+			Sk::NPC_Record* acti = (Sk::NPC_Record*) modRecords.at(i);
 			acti->IsChanged(true);
 	}
 	
 
 }
 
-
 void convertWEAP(SkyblivionConverter &converter) {
 	TES4File* oblivionMod = converter.getOblivionFile();
 	TES5File* skyrimMod = converter.getGeckFile();
 	TES5File* skyblivion = converter.getSkyblivionFile();
-	std::vector<Record*, std::allocator<Record*>> weapvators;
-	std::vector<Record*, std::allocator<Record*>> skyrimActivators;
-	std::vector<Record*, std::allocator<Record*>> modActivators;
-	oblivionMod->WEAP.pool.MakeRecordsVector(weapvators);	
-	skyblivion->WEAP.pool.MakeRecordsVector(skyrimActivators);
-	skyrimMod->WEAP.pool.MakeRecordsVector(skyrimActivators);
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->WEAP.pool.MakeRecordsVector(obRecords);
+	skyblivion->WEAP.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->WEAP.pool.MakeRecordsVector(skbRecords);
 	std::vector<Sk::WEAPRecord*> targets = std::vector<Sk::WEAPRecord*>();
-	printer("%d WEAPs found in oblivion file.\n", weapvators.size());
-	for (uint32_t it = 0; it < weapvators.size(); ++it) {
-		Ob::WEAPRecord *p = (Ob::WEAPRecord*)weapvators[it];
+	log_debug << obRecords.size() << " WEAPs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::WEAPRecord *p = (Ob::WEAPRecord*)obRecords[it];
 
 		if (p->SCRI.IsLoaded()) {
-			Sk::WEAPRecord* target = reinterpret_cast<Sk::WEAPRecord*>(*std::find_if(skyrimActivators.begin(), skyrimActivators.end(), [=](const Record* record) { return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); }));
-			if(!target)
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
 			{
-				std::cout << "Cannot find WEAP EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				log_error << "Cannot find WEAP EDID " << std::string(p->GetEditorIDKey()) << std::endl;
 				continue;
 			}
+			Sk::WEAPRecord* target = reinterpret_cast<Sk::WEAPRecord*>(*foundRec);
 
 			//Find the script
 			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
@@ -322,7 +369,7 @@ void convertWEAP(SkyblivionConverter &converter) {
 				targets.push_back(target);
 			}
 			catch (std::exception &ex) {
-				std::cout << "Cannot bind script to WEAP: " + std::string(ex.what()) << std::endl;
+				log_error << "Cannot bind script to WEAP: " + std::string(ex.what()) << std::endl;
 				continue; //Cannot find - thats fine
 			}
 
@@ -339,11 +386,578 @@ void convertWEAP(SkyblivionConverter &converter) {
 	//TODO:
 	//a) IsChanged flag should be passed on in copy constructor
 	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
-	skyrimMod->WEAP.pool.MakeRecordsVector(modActivators);
+	skyrimMod->WEAP.pool.MakeRecordsVector(modRecords);
 
-	for (uint32_t i = 0; i < modActivators.size(); i++) {
-			Sk::WEAPRecord* acti = (Sk::WEAPRecord*) modActivators.at(i);
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+			Sk::WEAPRecord* acti = (Sk::WEAPRecord*) modRecords.at(i);
 			acti->IsChanged(true);
+	}
+
+}
+
+void convertARMO(SkyblivionConverter &converter) {
+	TES4File* oblivionMod = converter.getOblivionFile();
+	TES5File* skyrimMod = converter.getGeckFile();
+	TES5File* skyblivion = converter.getSkyblivionFile();
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> obClotRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->ARMO.pool.MakeRecordsVector(obRecords);
+	oblivionMod->CLOT.pool.MakeRecordsVector(obClotRecords);
+	skyblivion->ARMO.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->ARMO.pool.MakeRecordsVector(skbRecords);
+	std::vector<Sk::ARMORecord*> targets = std::vector<Sk::ARMORecord*>();
+	log_debug << obRecords.size() << " ARMOs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::ARMORecord *p = (Ob::ARMORecord*)obRecords[it];
+
+		if (p->SCRI.IsLoaded()) {
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
+			{
+				log_error << "Cannot find ARMO EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				continue;
+			}
+			Sk::ARMORecord* target = reinterpret_cast<Sk::ARMORecord*>(*foundRec);
+
+			//Find the script
+			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
+
+			try {
+				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
+
+				target->VMAD = VMADRecord();
+				target->VMAD.scripts.push_back(convertedScript);
+				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
+				targets.push_back(target);
+			}
+			catch (std::exception &ex) {
+				log_error << "Cannot bind script to ARMO: " + std::string(ex.what()) << std::endl;
+				continue; //Cannot find - thats fine
+			}
+
+		}
+
+	}
+
+	log_debug << obRecords.size() << " CLOTs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obClotRecords.size(); ++it) {
+		Ob::CLOTRecord *p = (Ob::CLOTRecord*)obClotRecords[it];
+
+		if (p->SCRI.IsLoaded()) {
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
+			{
+				log_error << "Cannot find ARMO (old CLOT) EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				continue;
+			}
+			Sk::ARMORecord* target = reinterpret_cast<Sk::ARMORecord*>(*foundRec);
+
+			//Find the script
+			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
+
+			try {
+				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
+
+				target->VMAD = VMADRecord();
+				target->VMAD.scripts.push_back(convertedScript);
+				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
+				targets.push_back(target);
+			}
+			catch (std::exception &ex) {
+				log_error << "Cannot bind script to ARMO: " + std::string(ex.what()) << std::endl;
+				continue; //Cannot find - thats fine
+			}
+
+		}
+
+	}
+
+
+	for (uint32_t i = 0; i < targets.size(); i++) {
+		skyrimMod->ARMO.pool.construct(targets.at(i), NULL, false);
+	}
+
+
+	//TODO:
+	//a) IsChanged flag should be passed on in copy constructor
+	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
+	skyrimMod->ARMO.pool.MakeRecordsVector(modRecords);
+
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+		Sk::ARMORecord* acti = (Sk::ARMORecord*) modRecords.at(i);
+		acti->IsChanged(true);
+	}
+
+}
+
+void convertBOOK(SkyblivionConverter &converter) {
+	TES4File* oblivionMod = converter.getOblivionFile();
+	TES5File* skyrimMod = converter.getGeckFile();
+	TES5File* skyblivion = converter.getSkyblivionFile();
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->BOOK.pool.MakeRecordsVector(obRecords);
+	skyblivion->BOOK.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->BOOK.pool.MakeRecordsVector(skbRecords);
+	std::vector<Sk::BOOKRecord*> targets = std::vector<Sk::BOOKRecord*>();
+	log_debug << obRecords.size() << " BOOKs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::BOOKRecord *p = (Ob::BOOKRecord*)obRecords[it];
+
+		if (p->SCRI.IsLoaded()) {
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
+			{
+				log_error << "Cannot find BOOK EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				continue;
+			}
+			Sk::BOOKRecord* target = reinterpret_cast<Sk::BOOKRecord*>(*foundRec);
+
+			//Find the script
+			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
+
+			try {
+				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
+
+				target->VMAD = VMADRecord();
+				target->VMAD.scripts.push_back(convertedScript);
+				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
+				targets.push_back(target);
+			}
+			catch (std::exception &ex) {
+				log_error << "Cannot bind script to BOOK: " + std::string(ex.what()) << std::endl;
+				continue; //Cannot find - thats fine
+			}
+
+		}
+
+	}
+
+
+	for (uint32_t i = 0; i < targets.size(); i++) {
+		skyrimMod->BOOK.pool.construct(targets.at(i), NULL, false);
+	}
+
+
+	//TODO:
+	//a) IsChanged flag should be passed on in copy constructor
+	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
+	skyrimMod->BOOK.pool.MakeRecordsVector(modRecords);
+
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+		Sk::BOOKRecord* acti = (Sk::BOOKRecord*) modRecords.at(i);
+		acti->IsChanged(true);
+	}
+
+}
+
+void convertINGR(SkyblivionConverter &converter) {
+	TES4File* oblivionMod = converter.getOblivionFile();
+	TES5File* skyrimMod = converter.getGeckFile();
+	TES5File* skyblivion = converter.getSkyblivionFile();
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->INGR.pool.MakeRecordsVector(obRecords);
+	skyblivion->INGR.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->INGR.pool.MakeRecordsVector(skbRecords);
+	std::vector<Sk::INGRRecord*> targets = std::vector<Sk::INGRRecord*>();
+	log_debug << obRecords.size() << " INGRs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::INGRRecord *p = (Ob::INGRRecord*)obRecords[it];
+
+		if (p->SCRI.IsLoaded()) {
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
+			{
+				log_error << "Cannot find INGR EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				continue;
+			}
+			Sk::INGRRecord* target = reinterpret_cast<Sk::INGRRecord*>(*foundRec);
+
+			//Find the script
+			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
+
+			try {
+				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
+
+				target->VMAD = OptSubRecord<VMADRecord>();
+				target->VMAD.Load();
+				target->VMAD.value->scripts.push_back(convertedScript);
+				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
+				targets.push_back(target);
+			}
+			catch (std::exception &ex) {
+				log_error << "Cannot bind script to INGR: " + std::string(ex.what()) << std::endl;
+				continue; //Cannot find - thats fine
+			}
+
+		}
+
+	}
+
+
+	for (uint32_t i = 0; i < targets.size(); i++) {
+		skyrimMod->INGR.pool.construct(targets.at(i), NULL, false);
+	}
+
+
+	//TODO:
+	//a) IsChanged flag should be passed on in copy constructor
+	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
+	skyrimMod->INGR.pool.MakeRecordsVector(modRecords);
+
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+		Sk::INGRRecord* acti = (Sk::INGRRecord*) modRecords.at(i);
+		acti->IsChanged(true);
+	}
+
+}
+
+void convertKEYM(SkyblivionConverter &converter) {
+	TES4File* oblivionMod = converter.getOblivionFile();
+	TES5File* skyrimMod = converter.getGeckFile();
+	TES5File* skyblivion = converter.getSkyblivionFile();
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->KEYM.pool.MakeRecordsVector(obRecords);
+	skyblivion->KEYM.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->KEYM.pool.MakeRecordsVector(skbRecords);
+	std::vector<Sk::KEYMRecord*> targets = std::vector<Sk::KEYMRecord*>();
+	log_debug << obRecords.size() << " KEYMs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::KEYMRecord *p = (Ob::KEYMRecord*)obRecords[it];
+
+		if (p->SCRI.IsLoaded()) {
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
+			{
+				log_error << "Cannot find KEYM EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				continue;
+			}
+			Sk::KEYMRecord* target = reinterpret_cast<Sk::KEYMRecord*>(*foundRec);
+
+			//Find the script
+			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
+
+			try {
+				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
+
+				target->VMAD = VMADRecord();
+				target->VMAD.scripts.push_back(convertedScript);
+				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
+				targets.push_back(target);
+			}
+			catch (std::exception &ex) {
+				log_error << "Cannot bind script to KEYM: " + std::string(ex.what()) << std::endl;
+				continue; //Cannot find - thats fine
+			}
+
+		}
+
+	}
+
+
+	for (uint32_t i = 0; i < targets.size(); i++) {
+		skyrimMod->KEYM.pool.construct(targets.at(i), NULL, false);
+	}
+
+
+	//TODO:
+	//a) IsChanged flag should be passed on in copy constructor
+	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
+	skyrimMod->KEYM.pool.MakeRecordsVector(modRecords);
+
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+		Sk::KEYMRecord* acti = (Sk::KEYMRecord*) modRecords.at(i);
+		acti->IsChanged(true);
+	}
+
+}
+
+void convertMISC(SkyblivionConverter &converter) {
+	TES4File* oblivionMod = converter.getOblivionFile();
+	TES5File* skyrimMod = converter.getGeckFile();
+	TES5File* skyblivion = converter.getSkyblivionFile();
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> obSgstRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->MISC.pool.MakeRecordsVector(obRecords);
+	oblivionMod->SGST.pool.MakeRecordsVector(obSgstRecords);
+	skyblivion->MISC.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->MISC.pool.MakeRecordsVector(skbRecords);
+	std::vector<Sk::MISCRecord*> targets = std::vector<Sk::MISCRecord*>();
+	log_debug << obRecords.size() << " MISCs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::MISCRecord *p = (Ob::MISCRecord*)obRecords[it];
+
+		if (p->SCRI.IsLoaded()) {
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
+			{
+				log_error << "Cannot find MISC EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				continue;
+			}
+			Sk::MISCRecord* target = reinterpret_cast<Sk::MISCRecord*>(*foundRec);
+
+			//Find the script
+			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
+
+			try {
+				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
+
+				target->VMAD = VMADRecord();
+				target->VMAD.scripts.push_back(convertedScript);
+				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
+				targets.push_back(target);
+			}
+			catch (std::exception &ex) {
+				log_error << "Cannot bind script to MISC: " + std::string(ex.what()) << std::endl;
+				continue; //Cannot find - thats fine
+			}
+
+		}
+
+	}
+
+	printer("%d SGSTs found in oblivion file.\n", obSgstRecords.size());
+	for (uint32_t it = 0; it < obSgstRecords.size(); ++it) {
+		Ob::SGSTRecord *p = (Ob::SGSTRecord*)obSgstRecords[it];
+
+		if (p->SCRI.IsLoaded()) {
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
+			{
+				log_error << "Cannot find MISC (old SGST) EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				continue;
+			}
+			Sk::MISCRecord* target = reinterpret_cast<Sk::MISCRecord*>(*foundRec);
+
+			//Find the script
+			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
+
+			try {
+				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
+
+				target->VMAD = VMADRecord();
+				target->VMAD.scripts.push_back(convertedScript);
+				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
+				targets.push_back(target);
+			}
+			catch (std::exception &ex) {
+				log_error << "Cannot bind script to MISC: " + std::string(ex.what()) << std::endl;
+				continue; //Cannot find - thats fine
+			}
+
+		}
+
+	}
+
+
+	for (uint32_t i = 0; i < targets.size(); i++) {
+		skyrimMod->MISC.pool.construct(targets.at(i), NULL, false);
+	}
+
+
+	//TODO:
+	//a) IsChanged flag should be passed on in copy constructor
+	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
+	skyrimMod->MISC.pool.MakeRecordsVector(modRecords);
+
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+		Sk::MISCRecord* acti = (Sk::MISCRecord*) modRecords.at(i);
+		acti->IsChanged(true);
+	}
+
+}
+
+void convertFLOR(SkyblivionConverter &converter) {
+	TES4File* oblivionMod = converter.getOblivionFile();
+	TES5File* skyrimMod = converter.getGeckFile();
+	TES5File* skyblivion = converter.getSkyblivionFile();
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->FLOR.pool.MakeRecordsVector(obRecords);
+	skyblivion->FLOR.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->FLOR.pool.MakeRecordsVector(skbRecords);
+	std::vector<Sk::FLORRecord*> targets = std::vector<Sk::FLORRecord*>();
+	log_debug << obRecords.size() << " FLORs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::FLORRecord *p = (Ob::FLORRecord*)obRecords[it];
+
+		if (p->SCRI.IsLoaded()) {
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
+			{
+				log_error << "Cannot find FLOR EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				continue;
+			}
+			Sk::FLORRecord* target = reinterpret_cast<Sk::FLORRecord*>(*foundRec);
+
+			//Find the script
+			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
+
+			try {
+				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
+
+				target->VMAD = VMADRecord();
+				target->VMAD.scripts.push_back(convertedScript);
+				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
+				targets.push_back(target);
+			}
+			catch (std::exception &ex) {
+				log_error << "Cannot bind script to FLOR: " + std::string(ex.what()) << std::endl;
+				continue; //Cannot find - thats fine
+			}
+
+		}
+
+	}
+
+
+	for (uint32_t i = 0; i < targets.size(); i++) {
+		skyrimMod->FLOR.pool.construct(targets.at(i), NULL, false);
+	}
+
+
+	//TODO:
+	//a) IsChanged flag should be passed on in copy constructor
+	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
+	skyrimMod->FLOR.pool.MakeRecordsVector(modRecords);
+
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+		Sk::FLORRecord* acti = (Sk::FLORRecord*) modRecords.at(i);
+		acti->IsChanged(true);
+	}
+
+}
+
+void convertFURN(SkyblivionConverter &converter) {
+	TES4File* oblivionMod = converter.getOblivionFile();
+	TES5File* skyrimMod = converter.getGeckFile();
+	TES5File* skyblivion = converter.getSkyblivionFile();
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->FURN.pool.MakeRecordsVector(obRecords);
+	skyblivion->FURN.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->FURN.pool.MakeRecordsVector(skbRecords);
+	std::vector<Sk::FURNRecord*> targets = std::vector<Sk::FURNRecord*>();
+	log_debug << obRecords.size() << " FURNs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::FURNRecord *p = (Ob::FURNRecord*)obRecords[it];
+
+		if (p->SCRI.IsLoaded()) {
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
+			{
+				log_error << "Cannot find FURN EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				continue;
+			}
+			Sk::FURNRecord* target = reinterpret_cast<Sk::FURNRecord*>(*foundRec);
+
+			//Find the script
+			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
+
+			try {
+				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
+
+				target->VMAD = VMADRecord();
+				target->VMAD.scripts.push_back(convertedScript);
+				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
+				targets.push_back(target);
+			}
+			catch (std::exception &ex) {
+				log_error << "Cannot bind script to FURN: " + std::string(ex.what()) << std::endl;
+				continue; //Cannot find - thats fine
+			}
+
+		}
+
+	}
+
+
+	for (uint32_t i = 0; i < targets.size(); i++) {
+		skyrimMod->FURN.pool.construct(targets.at(i), NULL, false);
+	}
+
+
+	//TODO:
+	//a) IsChanged flag should be passed on in copy constructor
+	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
+	skyrimMod->FURN.pool.MakeRecordsVector(modRecords);
+
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+		Sk::FURNRecord* acti = (Sk::FURNRecord*) modRecords.at(i);
+		acti->IsChanged(true);
+	}
+
+}
+
+void convertLIGH(SkyblivionConverter &converter) {
+	TES4File* oblivionMod = converter.getOblivionFile();
+	TES5File* skyrimMod = converter.getGeckFile();
+	TES5File* skyblivion = converter.getSkyblivionFile();
+	std::vector<Record*, std::allocator<Record*>> obRecords;
+	std::vector<Record*, std::allocator<Record*>> skbRecords;
+	std::vector<Record*, std::allocator<Record*>> modRecords;
+	oblivionMod->LIGH.pool.MakeRecordsVector(obRecords);
+	skyblivion->LIGH.pool.MakeRecordsVector(skbRecords);
+	skyrimMod->LIGH.pool.MakeRecordsVector(skbRecords);
+	std::vector<Sk::LIGHRecord*> targets = std::vector<Sk::LIGHRecord*>();
+	log_debug << obRecords.size() << " LIGHs found in oblivion file.\n";
+	for (uint32_t it = 0; it < obRecords.size(); ++it) {
+		Ob::LIGHRecord *p = (Ob::LIGHRecord*)obRecords[it];
+
+		if (p->SCRI.IsLoaded()) {
+			auto foundRec = std::find_if(skbRecords.begin(), skbRecords.end(), [=](const Record* record) {return (p->formID & 0x00FFFFFF) == (record->formID & 0x00FFFFFF); });
+			if (foundRec == skbRecords.end())
+			{
+				log_error << "Cannot find LIGH EDID " << std::string(p->GetEditorIDKey()) << std::endl;
+				continue;
+			}
+			Sk::LIGHRecord* target = reinterpret_cast<Sk::LIGHRecord*>(*foundRec);
+
+			//Find the script
+			Ob::SCPTRecord* script = reinterpret_cast<Ob::SCPTRecord*>(*std::find_if(converter.getScripts().begin(), converter.getScripts().end(), [=](const Record* record) { return record->formID == p->SCRI.value;  }));
+
+			try {
+				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
+
+				target->VMAD = VMADRecord();
+				target->VMAD.scripts.push_back(convertedScript);
+				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
+				targets.push_back(target);
+			}
+			catch (std::exception &ex) {
+				log_error << "Cannot bind script to LIGH: " + std::string(ex.what()) << std::endl;
+				continue; //Cannot find - thats fine
+			}
+
+		}
+
+	}
+
+
+	for (uint32_t i = 0; i < targets.size(); i++) {
+		skyrimMod->LIGH.pool.construct(targets.at(i), NULL, false);
+	}
+
+
+	//TODO:
+	//a) IsChanged flag should be passed on in copy constructor
+	//b) It should be automatically marked when changing fields ( requires encapsulation of input to records )
+	skyrimMod->LIGH.pool.MakeRecordsVector(modRecords);
+
+	for (uint32_t i = 0; i < modRecords.size(); i++) {
+		Sk::LIGHRecord* acti = (Sk::LIGHRecord*) modRecords.at(i);
+		acti->IsChanged(true);
 	}
 
 }
@@ -352,7 +966,7 @@ void addSpeakAsNpcs(SkyblivionConverter &converter, Collection &skyrimCollection
 	std::string metadataFile = converter.ROOT_BUILD_PATH() + "Metadata";
 	std::FILE* scriptHandle = std::fopen(metadataFile.c_str(), "r");
 	if (!scriptHandle) {
-		std::cout << "Couldn't find Metadata File" << std::endl;
+		log_error << "Couldn't find Metadata File\n";
 		return;
 	}
 
@@ -400,7 +1014,7 @@ void addSpeakAsNpcs(SkyblivionConverter &converter, Collection &skyrimCollection
 		std::transform(achrEdid.begin(), achrEdid.end(), achrEdid.begin(), ::tolower);
 
 		if (converter.findRecordFormidByEDID(achrEdid) != NULL) {
-			std::cout << achrEdid << " already exists, new ACHR record won't be created" << std::endl;
+			log_info << achrEdid << " already exists, new ACHR record won't be created\n";
 			continue;
 		}
 
@@ -414,7 +1028,7 @@ void addSpeakAsNpcs(SkyblivionConverter &converter, Collection &skyrimCollection
 		FORMID actorFormid = converter.findRecordFormidByEDID("tes4" + actorName);
 
 		if (actorFormid == NULL) {
-			std::cout << "Couldn't find FORMID for the actor tes4" << actorName << std::endl;
+			log_error << "Couldn't find FORMID for the actor tes4" << actorName << "\n";
 			continue;
 		}
 
@@ -450,6 +1064,8 @@ int main(int argc, char * argv[]) {
 		return 0;
 	}
 
+	logger.init(argc, argv);
+
 	Collection oblivionCollection = Collection(argv[1], 0);
 	Collection skyrimCollection = Collection(argv[2], 3);
 
@@ -472,7 +1088,9 @@ int main(int argc, char * argv[]) {
 
 	SkyblivionConverter converter = SkyblivionConverter(oblivionCollection, skyrimCollection, std::string(argv[3]));
 
-	std::cout << "Converting DIAL records.. " << std::endl;
+	addSpeakAsNpcs(converter, skyrimCollection);
+
+	log_debug << std::endl << "Converting DIAL records.. " << std::endl;
 	std::vector<Sk::DIALRecord *> *resDIAL = converter.convertDIALFromOblivion();
 
 	/**
@@ -485,10 +1103,10 @@ int main(int argc, char * argv[]) {
 		converter.insertToEdidMap(dialEdid, dial->formID);
 	}
 
-	std::cout << "Converting QUST records.. " << std::endl;
+	log_debug << std::endl << "Converting QUST records.. " << std::endl;
 	std::vector<Sk::QUSTRecord *> *resQUST = converter.convertQUSTFromOblivion();
 
-	std::cout << "Converting PACK records.. " << std::endl;
+	log_debug << std::endl << "Converting PACK records.. " << std::endl;
 	std::vector<Record*, std::allocator<Record*>> packages;
 	oblivionMod->PACK.pool.MakeRecordsVector(packages);
 
@@ -504,8 +1122,7 @@ int main(int argc, char * argv[]) {
 			skyrimMod->PACK.pool.construct(skPack, NULL, false);
 		}
 		catch (std::exception &e) {
-			printer(e.what());
-			printer("\r\n");
+			log_warning << e.what() << "\n";
 			continue;
 		}
 
@@ -523,18 +1140,35 @@ int main(int argc, char * argv[]) {
 		converter.insertToEdidMap(qustEdid, qust->formID);
 	}
 
-	std::cout << "Binding VMADs to ACTI records.. " << std::endl;
-	convertACTI(converter);
-	std::cout << "Binding VMADs to CONT records.. " << std::endl;
-	convertCONT(converter);
-	std::cout << "Binding VMADs to DOOR records.. " << std::endl;
-	convertDOOR(converter);
-	std::cout << "Binding VMADs to NPC_ records.. " << std::endl;
-	convertNPC_(converter);
-	std::cout << "Binding VMADs to WEAP records.. " << std::endl;
-	convertWEAP(converter);
+	log_debug << std::endl << "Binding properties of INFO and QUST related scripts.. " << std::endl;
+	converter.bindScriptProperties(resDIAL, resQUST);
 
-	addSpeakAsNpcs(converter, skyrimCollection);
+	log_debug << std::endl << "Binding VMADs to ACTI records.. " << std::endl;
+	convertACTI(converter);
+	log_debug << std::endl << "Binding VMADs to CONT records.. " << std::endl;
+	convertCONT(converter);
+	log_debug << std::endl << "Binding VMADs to DOOR records.. " << std::endl;
+	convertDOOR(converter);
+	log_debug << std::endl << "Binding VMADs to NPC_ records.. " << std::endl;
+	convertNPC_(converter);
+	log_debug << std::endl << "Binding VMADs to WEAP records.. " << std::endl;
+	convertWEAP(converter);
+	log_debug << std::endl << "Binding VMADs to ARMO records.. " << std::endl;
+	convertARMO(converter);
+	log_debug << std::endl << "Binding VMADs to BOOK records.. " << std::endl;
+	convertBOOK(converter);
+	log_debug << std::endl << "Binding VMADs to INGR records.. " << std::endl;
+	convertINGR(converter);
+	log_debug << std::endl << "Binding VMADs to KEYM records.. " << std::endl;
+	convertKEYM(converter);
+	log_debug << std::endl << "Binding VMADs to MISC records.. " << std::endl;
+	convertMISC(converter);
+	log_debug << std::endl << "Binding VMADs to FLOR records.. " << std::endl;
+	convertFLOR(converter);
+	log_debug << std::endl << "Binding VMADs to FURN records.. " << std::endl;
+	convertFURN(converter);
+	log_debug << std::endl << "Binding VMADs to LIGH records.. " << std::endl;
+	convertLIGH(converter);
 
     SaveFlags skSaveFlags = SaveFlags(2);
 
