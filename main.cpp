@@ -1053,6 +1053,334 @@ void addSpeakAsNpcs(SkyblivionConverter &converter, Collection &skyrimCollection
 	converter.insertToEdidMap(cellEdid, newCell->formID);
 }
 
+Sk::PACKRecord* getLockPackageTemplate(Sk::PACKRecord* src) {
+    Sk::PACKRecord* copy = new Sk::PACKRecord(*src);
+
+    /*
+    *   Add TDAT entries
+    */
+    uint8_t newPData = copy->XNAM.value;
+    char* actBool = "Bool";
+    Sk::PACKRecord::PACKACTIVITY p;
+
+    // Lock at Start?
+    copy->TDAT.unamData.push_back(newPData++);
+    copy->TDAT.ANAM.push_back(actBool);
+    p = Sk::PACKRecord::PACKACTIVITY();
+    p.writtenBool = false;
+    copy->TDAT.cnamData.push_back(p);
+
+    // Lock at Location?
+    copy->TDAT.unamData.push_back(newPData++);
+    copy->TDAT.ANAM.push_back(actBool);
+    p = Sk::PACKRecord::PACKACTIVITY();
+    p.writtenBool = false;
+    copy->TDAT.cnamData.push_back(p);
+
+    // Lock at End?
+    copy->TDAT.unamData.push_back(newPData++);
+    copy->TDAT.ANAM.push_back(actBool);
+    p = Sk::PACKRecord::PACKACTIVITY();
+    p.writtenBool = false;
+    copy->TDAT.cnamData.push_back(p);
+
+    // Unlock at Start?
+    copy->TDAT.unamData.push_back(newPData++);
+    copy->TDAT.ANAM.push_back(actBool);
+    p = Sk::PACKRecord::PACKACTIVITY();
+    p.writtenBool = false;
+    copy->TDAT.cnamData.push_back(p);
+
+    // Unlock at Location?
+    copy->TDAT.unamData.push_back(newPData++);
+    copy->TDAT.ANAM.push_back(actBool);
+    p = Sk::PACKRecord::PACKACTIVITY();
+    p.writtenBool = false;
+    copy->TDAT.cnamData.push_back(p);
+
+    // Unlock at End?
+    copy->TDAT.unamData.push_back(newPData++);
+    copy->TDAT.ANAM.push_back(actBool);
+    p = Sk::PACKRecord::PACKACTIVITY();
+    p.writtenBool = false;
+    copy->TDAT.cnamData.push_back(p);
+
+    // Near self (location)
+    copy->TDAT.unamData.push_back(newPData++);
+    char* actLoc = "Location";
+    copy->TDAT.ANAM.push_back(actLoc);
+    p = Sk::PACKRecord::PACKACTIVITY();
+    p.writtenPLDT.locType = 12;
+    p.writtenPLDT.locRadius = 1000;
+    copy->TDAT.cnamData.push_back(p);
+
+    // Update public package data count
+    copy->PKCU.value.dataInputCount += newPData - copy->XNAM.value;
+    // Update XNAM value
+    copy->XNAM.value = newPData;
+
+    /*
+    *   Add procedures to the tree
+    */
+    // Lock at Start
+    Sk::PACKRecord::PACKPTRE* ptre = new Sk::PACKRecord::PACKPTRE();
+    ptre->ANAM = "Procedure";
+    ptre->PNAM = "LockDoors";
+    ptre->FNAM = 0;
+    ptre->PKC2.push_back(newPData - 1); // Location: Near Self, 512
+
+    ptre->CITC = 1;
+    Sk::SKCondition* cond = new Sk::SKCondition();
+    cond->CTDA.value.compValue = 0x3F800000; // 1
+    cond->CTDA.value.ifunc = 612;
+    cond->CTDA.value.param1 = newPData - 7; // Lock at Start?
+    ptre->CTDA.value.push_back(cond);
+
+    copy->PTRE.value[0]->PRCB.numOfChild++; // Increase main branch's child count
+    copy->PTRE.value.insert(copy->PTRE.value.begin() + 1, ptre); // Add to 2. place
+
+    // Lock at Location
+    // Find first main branch Travel procedure
+    for (int i = 2; i < copy->PTRE.value.size(); i++) {
+        if (std::string(copy->PTRE.value[i]->PNAM) == "Travel") {
+            ptre = new Sk::PACKRecord::PACKPTRE();
+            ptre->ANAM = "Procedure";
+            ptre->PNAM = "LockDoors";
+            ptre->FNAM = 0;
+            ptre->PKC2.push_back(newPData - 1); // Location: Near Self, 512
+
+            ptre->CITC = 1;
+            cond = new Sk::SKCondition();
+            cond->CTDA.value.compValue = 0x3F800000; // 1
+            cond->CTDA.value.ifunc = 612;
+            cond->CTDA.value.param1 = newPData - 6; // Lock at Location?
+            ptre->CTDA.value.push_back(cond);
+
+            copy->PTRE.value[0]->PRCB.numOfChild++; // Increase main branch's child count
+            copy->PTRE.value.insert(copy->PTRE.value.begin() + i + 1, ptre); // Add after Travel
+            break;
+        }
+        else {
+            // if a child branch, skip it
+            if (std::string(copy->PTRE.value[i]->ANAM) != "Procedure") {
+                i += copy->PTRE.value[i]->PRCB.numOfChild;
+            }
+        }
+    }
+
+    // Lock at End
+    ptre = new Sk::PACKRecord::PACKPTRE();
+    ptre->ANAM = "Procedure";
+    ptre->PNAM = "LockDoors";
+    ptre->FNAM = 1;
+    ptre->PKC2.push_back(newPData - 1); // Location: Near Self, 512
+
+    ptre->CITC = 1;
+    cond = new Sk::SKCondition();
+    cond->CTDA.value.compValue = 0x3F800000; // 1
+    cond->CTDA.value.ifunc = 612;
+    cond->CTDA.value.param1 = newPData - 5; // Lock at Start?
+    ptre->CTDA.value.push_back(cond);
+
+    copy->PTRE.value[0]->PRCB.numOfChild++; // Increase main branch's child count
+    copy->PTRE.value.push_back(ptre); // Add to the end
+
+    // Unlock at Start
+    ptre = new Sk::PACKRecord::PACKPTRE();
+    ptre->ANAM = "Procedure";
+    ptre->PNAM = "UnlockDoors";
+    ptre->FNAM = 0;
+    ptre->PKC2.push_back(newPData - 1); // Location: Near Self, 512
+
+    ptre->CITC = 1;
+    cond = new Sk::SKCondition();
+    cond->CTDA.value.compValue = 0x3F800000; // 1
+    cond->CTDA.value.ifunc = 612;
+    cond->CTDA.value.param1 = newPData - 4; // Unlock at Start?
+    ptre->CTDA.value.push_back(cond);
+
+    copy->PTRE.value[0]->PRCB.numOfChild++; // Increase main branch's child count
+    copy->PTRE.value.insert(copy->PTRE.value.begin() + 1, ptre); // Add to 2. place
+
+
+    // Unlock at Location
+    // Find first main branch Travel procedure
+    for (int i = 2; i < copy->PTRE.value.size(); i++) {
+        if (std::string(copy->PTRE.value[i]->PNAM) == "Travel") {
+            ptre = new Sk::PACKRecord::PACKPTRE();
+            ptre->ANAM = "Procedure";
+            ptre->PNAM = "UnlockDoors";
+            ptre->FNAM = 0;
+            ptre->PKC2.push_back(newPData - 1); // Location: Near Self, 512
+
+            ptre->CITC = 1;
+            cond = new Sk::SKCondition();
+            cond->CTDA.value.compValue = 0x3F800000; // 1
+            cond->CTDA.value.ifunc = 612;
+            cond->CTDA.value.param1 = newPData - 3; // Unlock at Location?
+            ptre->CTDA.value.push_back(cond);
+
+            copy->PTRE.value[0]->PRCB.numOfChild++; // Increase main branch's child count
+            copy->PTRE.value.insert(copy->PTRE.value.begin() + i + 1, ptre); // Add after Travel
+            break;
+        }
+        else {
+            // if a child branch, skip it
+            if (std::string(copy->PTRE.value[i]->ANAM) != "Procedure") {
+                i += copy->PTRE.value[i]->PRCB.numOfChild;
+            }
+        }
+    }
+
+    // Unlock at End
+    ptre = new Sk::PACKRecord::PACKPTRE();
+    ptre->ANAM = "Procedure";
+    ptre->PNAM = "UnlockDoors";
+    ptre->FNAM = 1;
+    ptre->PKC2.push_back(newPData - 1); // Location: Near Self, 512
+
+    ptre->CITC = 1;
+    cond = new Sk::SKCondition();
+    cond->CTDA.value.compValue = 0x3F800000; // 1
+    cond->CTDA.value.ifunc = 612;
+    cond->CTDA.value.param1 = newPData - 2; // Unlock at Start?
+    ptre->CTDA.value.push_back(cond);
+
+    copy->PTRE.value[0]->PRCB.numOfChild++; // Increase main branch's child count
+    copy->PTRE.value.push_back(ptre); // Add to the end
+
+    /*
+    *   Add package data infos
+    */
+    Sk::PACKRecord::PACKPDAT* pdat;
+
+    pdat = new Sk::PACKRecord::PACKPDAT();
+    pdat->UNAM = newPData - 7;
+    pdat->PNAM = 1;
+    pdat->BNAM = "Lock at Start?";
+    copy->PDAT.value.push_back(pdat);
+
+    pdat = new Sk::PACKRecord::PACKPDAT();
+    pdat->UNAM = newPData - 6;
+    pdat->PNAM = 1;
+    pdat->BNAM = "Lock at Location?";
+    copy->PDAT.value.push_back(pdat);
+
+    pdat = new Sk::PACKRecord::PACKPDAT();
+    pdat->UNAM = newPData - 5;
+    pdat->PNAM = 1;
+    pdat->BNAM = "Lock at End?";
+    copy->PDAT.value.push_back(pdat);
+
+    pdat = new Sk::PACKRecord::PACKPDAT();
+    pdat->UNAM = newPData - 4;
+    pdat->PNAM = 1;
+    pdat->BNAM = "Unlock at Start?";
+    copy->PDAT.value.push_back(pdat);
+
+    pdat = new Sk::PACKRecord::PACKPDAT();
+    pdat->UNAM = newPData - 3;
+    pdat->PNAM = 1;
+    pdat->BNAM = "Unlock at Location?";
+    copy->PDAT.value.push_back(pdat);
+
+    pdat = new Sk::PACKRecord::PACKPDAT();
+    pdat->UNAM = newPData - 2;
+    pdat->PNAM = 1;
+    pdat->BNAM = "Unlock at End?";
+    copy->PDAT.value.push_back(pdat);
+
+    pdat = new Sk::PACKRecord::PACKPDAT();
+    pdat->UNAM = newPData - 1;
+    pdat->PNAM = 1;
+    pdat->BNAM = "Near Self";
+    copy->PDAT.value.push_back(pdat);
+
+    return copy;
+}
+
+void addPackageTemplates(SkyblivionConverter &converter, Collection &skyrimCollection) {
+	TES5File* skyrim = converter.getSkyrimFile();
+    ModFile *skyblivionMod = converter.getSkyblivionFile();
+    TES5File* skyrimMod = converter.getGeckFile();
+	std::vector<Record*, std::allocator<Record*>> skyrimPacks;
+	skyrim->PACK.pool.MakeRecordsVector(skyrimPacks);
+    std::vector<Record*, std::allocator<Record*>> skbPacks;
+    ((TES5File*)skyblivionMod)->PACK.pool.MakeRecordsVector(skbPacks);
+
+
+    for (int i = 0; i < skbPacks.size(); i++) {
+        Sk::PACKRecord* pack = (Sk::PACKRecord*)skbPacks[i];
+        std::string edid = std::string(pack->EDID.IsLoaded() ? pack->EDID.value : "");
+
+        if (edid == "TES4FindPackageTemplate") {
+            Sk::PACKRecord* copy = getLockPackageTemplate(pack);
+
+            copy->EDID.value = "TES4FindLockPackageTemplate";
+            copy->formID = skyrimCollection.NextFreeExpandedFormID(skyblivionMod);
+
+            converter.insertToEdidMap("TES4FindLockPackageTemplate", copy->formID);
+            skyrimMod->PACK.pool.construct(copy, NULL, false);
+        }
+
+        if (edid == "TES4UseItemAtPackageTemplate") {
+            Sk::PACKRecord* copy = getLockPackageTemplate(pack);
+
+            copy->EDID.value = "TES4UseItemAtLockPackageTemplate";
+            copy->formID = skyrimCollection.NextFreeExpandedFormID(skyblivionMod);
+
+            converter.insertToEdidMap("TES4UseItemAtLockPackageTemplate", copy->formID);
+            skyrimMod->PACK.pool.construct(copy, NULL, false);
+        }
+    }
+
+	for (int i = 0; i < skyrimPacks.size(); i++) {
+		Sk::PACKRecord* pack = (Sk::PACKRecord*)skyrimPacks[i];
+		std::string edid = std::string(pack->EDID.IsLoaded() ? pack->EDID.value : "");
+
+        if (edid == "Eat") {
+            Sk::PACKRecord* copy = getLockPackageTemplate(pack);
+
+            copy->EDID.value = "TES4EatLockTemplate";
+            copy->formID = skyrimCollection.NextFreeExpandedFormID(skyblivionMod);
+
+            converter.insertToEdidMap("TES4EatLockTemplate", copy->formID);
+            skyrimMod->PACK.pool.construct(copy, NULL, false);
+        }
+
+		if (edid == "Sleep") {
+            Sk::PACKRecord* copy = getLockPackageTemplate(pack);
+
+            copy->EDID.value = "TES4SleepLockTemplate";
+            copy->formID = skyrimCollection.NextFreeExpandedFormID(skyblivionMod);
+
+            converter.insertToEdidMap("TES4SleepLockTemplate", copy->formID);
+            skyrimMod->PACK.pool.construct(copy, NULL, false);
+		}
+
+        if (edid == "Sandbox") {
+            Sk::PACKRecord* copy = getLockPackageTemplate(pack);
+
+            copy->EDID.value = "TES4SandboxLockTemplate";
+            copy->formID = skyrimCollection.NextFreeExpandedFormID(skyblivionMod);
+
+            converter.insertToEdidMap("TES4SandboxLockTemplate", copy->formID);
+            skyrimMod->PACK.pool.construct(copy, NULL, false);
+        }
+
+        if (edid == "Travel") {
+            Sk::PACKRecord* copy = getLockPackageTemplate(pack);
+
+            copy->EDID.value = "TES4TravelLockTemplate";
+            copy->formID = skyrimCollection.NextFreeExpandedFormID(skyblivionMod);
+            copy->PTRE.value[3]->FNAM = 0;
+
+            converter.insertToEdidMap("TES4TravelLockTemplate", copy->formID);
+            skyrimMod->PACK.pool.construct(copy, NULL, false);
+        }
+	}
+}
+
 int main(int argc, char * argv[]) {
 
 	char* input = "Input.esm";
@@ -1107,6 +1435,8 @@ int main(int argc, char * argv[]) {
 	std::vector<Sk::QUSTRecord *> *resQUST = converter.convertQUSTFromOblivion();
 
 	log_debug << std::endl << "Converting PACK records.. " << std::endl;
+    addPackageTemplates(converter, skyrimCollection);
+
 	std::vector<Record*, std::allocator<Record*>> packages;
 	oblivionMod->PACK.pool.MakeRecordsVector(packages);
 
