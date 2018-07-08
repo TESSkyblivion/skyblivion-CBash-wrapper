@@ -584,9 +584,11 @@ void convertINGR(SkyblivionConverter &converter) {
 			try {
 				Script* convertedScript = converter.createVirtualMachineScriptFor(script);
 
-				target->VMAD = OptSubRecord<VMADRecord>();
-				target->VMAD.Load();
-				target->VMAD.value->scripts.push_back(convertedScript);
+				//target->VMAD = OptSubRecord<VMADRecord>();
+				//target->VMAD.Load();
+				target->VMAD = VMADRecord();
+				target->VMAD.scripts.push_back(convertedScript);
+				//target->VMAD.value->scripts.push_back(convertedScript);
 				target->IsChanged(true); //Hack - idk why it doesn't mark itself..
 				targets.push_back(target);
 			}
